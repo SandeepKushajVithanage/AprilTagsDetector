@@ -22,14 +22,22 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+
+//    externalNativeBuild {
+//        cmake {
+//            path "src/main/apriltag/CMakeLists.txt"
+//        }
+//    }
 }
 
 dependencies {
-
+//    implementation project(':apriltag_android')
+    implementation libs.opencv.contrib
     implementation libs.appcompat
     implementation libs.material
     implementation libs.activity

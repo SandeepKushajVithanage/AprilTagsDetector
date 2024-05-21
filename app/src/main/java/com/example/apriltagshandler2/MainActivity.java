@@ -1,42 +1,69 @@
 package com.example.apriltagshandler2;
 
+import android.Manifest;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
+import android.media.Image;
+import android.media.ImageReader;
 import android.os.Bundle;
+import android.util.Log;
+import android.view.Surface;
 import android.view.TextureView;
-import android.Manifest;
-import androidx.activity.EdgeToEdge;
+import android.widget.ImageView;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.camera.core.imagecapture.CameraRequest;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
-import android.view.Surface;
+import org.opencv.android.OpenCVLoader;
+import org.opencv.android.Utils;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint2f;
+import org.opencv.core.Point;
+import org.opencv.core.Scalar;
+import org.opencv.core.Size;
+import org.opencv.imgproc.Imgproc;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collections;
+import org.opencv.core.Mat;
+import org.opencv.core.Rect;
+import org.opencv.core.Scalar;
+import org.opencv.core.Size;
+import org.opencv.imgproc.Imgproc;
+//import apriltag.AprilTagDetector;
+//import apriltag.AprilTagDetection;
+//import apriltag.AprilTagDetectorJNI;
+
 
 public class MainActivity extends AppCompatActivity {
     private static final int CAMERA_REQUEST_CODE = 200;
     private TextureView textureView;
     private CameraDevice cameraDevice;
     private CameraCaptureSession cameraCaptureSession;
+    private ImageReader imageReader;
+//    private AprilTagNative aprilTagNative;
+
+    static {
+        if (!OpenCVLoader.initDebug()) {
+            Log.e("OpenCV", "Unable to load OpenCV!");
+        } else {
+            Log.d("OpenCV", "OpenCV loaded Successfully!");
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
 
         textureView = findViewById(R.id.texture_view);
 
@@ -47,6 +74,10 @@ public class MainActivity extends AppCompatActivity {
         } else {
             startCamera();
         }
+
+        // Initialize AprilTagNative
+//        aprilTagNative = new AprilTagNative();
+//        aprilTagNative.initialize();
     }
 
     @Override
@@ -56,8 +87,6 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == CAMERA_REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 startCamera();
-            } else {
-                // Permission denied, show a message to the user
             }
         }
     }
@@ -122,27 +151,72 @@ public class MainActivity extends AppCompatActivity {
             CaptureRequest.Builder builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             builder.addTarget(surface);
 
-            cameraDevice.createCaptureSession(Collections.singletonList(surface), new CameraCaptureSession.StateCallback() {
-                @Override
-                public void onConfigured(@NonNull CameraCaptureSession session) {
-                    if (cameraDevice == null) {
-                        return;
-                    }
-                    cameraCaptureSession = session;
-                    try {
-                        builder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO);
-                        cameraCaptureSession.setRepeatingRequest(builder.build(), null, null);
-                    } catch (CameraAccessException e) {
-                        e.printStackTrace();
-                    }
+            imageReader = ImageReader.newInstance(textureView.getWidth(), textureView.getHeight(),
+                    ImageFormat.YUV_420_888, 2);
+            imageReader.setOnImageAvailableListener(reader -> {
+                Image image = reader.acquireLatestImage();
+                if (image != null) {
+                    processImage(image);
+                    image.close();
                 }
-
-                @Override
-                public void onConfigureFailed(@NonNull CameraCaptureSession session) {}
             }, null);
+
+            cameraDevice.createCaptureSession(Arrays.asList(surface, imageReader.getSurface()),
+                    new CameraCaptureSession.StateCallback() {
+                        @Override
+                        public void onConfigured(@NonNull CameraCaptureSession session) {
+                            if (cameraDevice == null) {
+                                return;
+                            }
+                            cameraCaptureSession = session;
+                            try {
+                                builder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO);
+                                cameraCaptureSession.setRepeatingRequest(builder.build(), null, null);
+                            } catch (CameraAccessException e) {
+                                e.printStackTrace();
+                            }
+                        }
+
+                        @Override
+                        public void onConfigureFailed(@NonNull CameraCaptureSession session) {}
+                    }, null);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
+    }
+
+    private void processImage(Image image) {
+        ByteBuffer buffer = image.getPlanes()[0].getBuffer();
+        byte[] bytes = new byte[buffer.remaining()];
+        buffer.get(bytes);
+
+        Mat mat = new Mat(image.getHeight(), image.getWidth(), CvType.CV_8UC1);
+        mat.put(0, 0, bytes);
+
+        Imgproc.cvtColor(mat, mat, Imgproc.COLOR_YUV2GRAY_420);
+
+// Convert the Mat to a byte array
+        byte[] imageData = new byte[(int) (mat.total() * mat.elemSize())];
+        mat.get(0, 0, imageData);
+
+//        // Call the native method to detect AprilTags
+//        AprilTagDetection[] detections = aprilTagNative.detectAprilTags(imageData, mat.width(), mat.height());
+//
+//        // Draw rectangles around detected AprilTags
+//        for (AprilTagDetection detection : detections) {
+//            Point pt1 = new Point(detection.corners[0][0], detection.corners[0][1]);
+//            Point pt2 = new Point(detection.corners[2][0], detection.corners[2][1]);
+//            Imgproc.rectangle(mat, pt1, pt2, new Scalar(0, 255, 0), 2);
+//        }
+
+        // If you want to display the processed frame, you can do so by converting the Mat back to a bitmap and displaying it in an ImageView
+        Bitmap bitmap = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888);
+        Utils.matToBitmap(mat, bitmap);
+
+        runOnUiThread(() -> {
+            ImageView imageView = findViewById(R.id.imageView);
+            imageView.setImageBitmap(bitmap);
+        });
     }
 
     @Override
