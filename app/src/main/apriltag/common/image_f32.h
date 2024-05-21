@@ -34,7 +34,7 @@ either expressed or implied, of the Regents of The University of Michigan.
 #define _IMAGE_F32
 
 #include <stdint.h>
-#include "common/image_types.h"
+#include "image_types.h"
 
 image_f32_t *image_f32_create(int width, int height);
 

@@ -23,7 +23,7 @@ static struct {
     jfieldID ad_id_field, ad_hamming_field, ad_c_field, ad_p_field;
 } state;
 
-JNIEXPORT void JNICALL Java_edu_umich_eecs_april_apriltag_ApriltagNative_native_1init
+JNIEXPORT void JNICALL Java_com_example_apriltagshandler2_AprilTagNative_native_1init
     (JNIEnv *env, jclass cls)
 {
     // Just do method lookups once and cache the results
@@ -46,7 +46,7 @@ JNIEXPORT void JNICALL Java_edu_umich_eecs_april_apriltag_ApriltagNative_native_
     }
 
     // Get ApriltagDetection methods
-    jclass ad_cls = (*env)->FindClass(env, "edu/umich/eecs/april/apriltag/ApriltagDetection");
+    jclass ad_cls = (*env)->FindClass(env, "com/example/apriltagshandler2/AprilTagDetection");
     if (!ad_cls) {
         __android_log_write(ANDROID_LOG_ERROR, "apriltag_jni",
                             "couldn't find ApriltagDetection class");
@@ -76,11 +76,11 @@ JNIEXPORT void JNICALL Java_edu_umich_eecs_april_apriltag_ApriltagNative_native_
 }
 
 /*
- * Class:     edu_umich_eecs_april_apriltag_ApriltagNative
+ * Class:     com_example_apriltagshandler2_AprilTagNative
  * Method:    yuv_to_rgb
  * Signature: ([BIILandroid/graphics/Bitmap;)V
  */
-JNIEXPORT void JNICALL Java_edu_umich_eecs_april_apriltag_ApriltagNative_yuv_1to_1rgb
+JNIEXPORT void JNICALL Java_com_example_apriltagshandler2_AprilTagNative_yuv_1to_1rgb
     (JNIEnv *env, jclass cls, jbyteArray _src, jint width, jint height, jobject _dst)
 {
     // NV21 Format
@@ -141,11 +141,11 @@ JNIEXPORT void JNICALL Java_edu_umich_eecs_april_apriltag_ApriltagNative_yuv_1to
 }
 
 /*
- * Class:     edu_umich_eecs_april_apriltag_ApriltagNative
+ * Class:     com_example_apriltagshandler2_AprilTagNative
  * Method:    apriltag_init
  * Signature: (Ljava/lang/String;IDDI)V
  */
-JNIEXPORT void JNICALL Java_edu_umich_eecs_april_apriltag_ApriltagNative_apriltag_1init
+JNIEXPORT void JNICALL Java_com_example_apriltagshandler2_AprilTagNative_apriltag_1init
         (JNIEnv *env, jclass cls, jstring _tfname, jint errorbits, jdouble decimate,
          jdouble sigma, jint nthreads) {
     // Do cleanup in case we're already initialized
@@ -195,11 +195,11 @@ JNIEXPORT void JNICALL Java_edu_umich_eecs_april_apriltag_ApriltagNative_aprilta
 }
 
 /*
- * Class:     edu_umich_eecs_april_apriltag_ApriltagNative
+ * Class:     com_example_apriltagshandler2_AprilTagNative
  * Method:    apriltag_detect_yuv
  * Signature: ([BII)Ljava/util/ArrayList;
  */
-JNIEXPORT jobject JNICALL Java_edu_umich_eecs_april_apriltag_ApriltagNative_apriltag_1detect_1yuv
+JNIEXPORT jobject JNICALL Java_com_example_apriltagshandler2_AprilTagNative_apriltag_1detect_1yuv
         (JNIEnv *env, jclass cls, jbyteArray _buf, jint width, jint height) {
     // If not initialized, init with default settings
     if (!state.td) {

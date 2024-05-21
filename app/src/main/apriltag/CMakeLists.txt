@@ -18,37 +18,37 @@ add_library(# Specifies the name of the library.
             SHARED
 
             # Provides a relative path to your source file(s).
-            src/main/apriltag/apriltag.c
-            src/main/apriltag/apriltag_jni.c
-            src/main/apriltag/apriltag_quad_thresh.c
-            src/main/apriltag/common/g2d.c
-            src/main/apriltag/common/getopt.c
-            src/main/apriltag/common/homography.c
-            src/main/apriltag/common/image_f32.c
-            src/main/apriltag/common/image_u8.c
-            src/main/apriltag/common/image_u8x3.c
-            src/main/apriltag/common/matd.c
-            src/main/apriltag/common/pnm.c
-            src/main/apriltag/common/string_util.c
-            src/main/apriltag/common/svd22.c
-            src/main/apriltag/common/time_util.c
-            src/main/apriltag/common/unionfind.c
-            src/main/apriltag/common/workerpool.c
-            src/main/apriltag/common/zarray.c
-            src/main/apriltag/common/zhash.c
-            src/main/apriltag/common/zmaxheap.c
-            src/main/apriltag/tag16h5.c
-            src/main/apriltag/tag25h7.c
-            src/main/apriltag/tag25h9.c
-            src/main/apriltag/tag36artoolkit.c
-            src/main/apriltag/tag36h10.c
-            src/main/apriltag/tag36h11.c
-            )
+            apriltag.c
+            apriltag_jni.c
+            apriltag_quad_thresh.c
+            common/g2d.c
+            common/getopt.c
+            common/homography.c
+            common/image_f32.c
+            common/image_u8.c
+            common/image_u8x3.c
+            common/matd.c
+            common/pnm.c
+            common/string_util.c
+            common/svd22.c
+            common/time_util.c
+            common/unionfind.c
+            common/workerpool.c
+            common/zarray.c
+            common/zhash.c
+            common/zmaxheap.c
+            tag16h5.c
+            tag25h7.c
+            tag25h9.c
+            tag36artoolkit.c
+            tag36h10.c
+            tag36h11.c
+        )
 
 STRING(REPLACE "-O0" "-O4" CMAKE_C_FLAGS_DEBUG ${CMAKE_C_FLAGS_DEBUG})
 STRING(REPLACE "-O2" "-O4" CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE})
 
-include_directories(src/main/apriltag/)
+include_directories(.)
 
 find_library(log-lib log)
 find_library(jnigraphics-lib jnigraphics)

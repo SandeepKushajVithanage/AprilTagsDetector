@@ -28,11 +28,11 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
-//    externalNativeBuild {
-//        cmake {
-//            path "src/main/apriltag/CMakeLists.txt"
-//        }
-//    }
+    externalNativeBuild {
+        cmake {
+            path "src/main/apriltag/CMakeLists.txt"
+        }
+    }
 }
 
 dependencies {

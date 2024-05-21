@@ -9,6 +9,7 @@ import java.util.ArrayList;
  */
 
 public class AprilTagNative {
+
     static {
         System.loadLibrary("apriltag");
         native_init();

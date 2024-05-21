@@ -23,7 +23,7 @@ License along with this library; if not, see <http://www.gnu.org/licenses/>.
 #define _IMAGE_U8X3_H
 
 #include <stdint.h>
-#include "common/image_types.h"
+#include "image_types.h"
 
 #ifdef __cplusplus
 extern "C" {

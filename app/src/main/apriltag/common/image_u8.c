@@ -36,9 +36,9 @@ either expressed or implied, of the Regents of The University of Michigan.
 #include <string.h>
 #include <math.h>
 
-#include "common/image_u8.h"
-#include "common/pnm.h"
-#include "common/math_util.h"
+#include "image_u8.h"
+#include "pnm.h"
+#include "math_util.h"
 
 // least common multiple of 64 (sandy bridge cache line) and 24 (stride
 // needed for RGB in 8-wide vector processing)

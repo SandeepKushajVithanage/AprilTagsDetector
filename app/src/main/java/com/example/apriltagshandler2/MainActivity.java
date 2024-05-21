@@ -1,6 +1,7 @@
 package com.example.apriltagshandler2;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.ImageFormat;
@@ -13,11 +14,11 @@ import android.hardware.camera2.CaptureRequest;
 import android.media.Image;
 import android.media.ImageReader;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.Surface;
 import android.view.TextureView;
 import android.widget.ImageView;
-
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -26,23 +27,13 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
-import org.opencv.core.MatOfPoint2f;
-import org.opencv.core.Point;
 import org.opencv.core.Scalar;
-import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
+import org.opencv.core.Point;
 import java.util.Collections;
-import org.opencv.core.Mat;
-import org.opencv.core.Rect;
-import org.opencv.core.Scalar;
-import org.opencv.core.Size;
-import org.opencv.imgproc.Imgproc;
-//import apriltag.AprilTagDetector;
-//import apriltag.AprilTagDetection;
-//import apriltag.AprilTagDetectorJNI;
-
 
 public class MainActivity extends AppCompatActivity {
     private static final int CAMERA_REQUEST_CODE = 200;
@@ -51,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
     private CameraCaptureSession cameraCaptureSession;
     private ImageReader imageReader;
 //    private AprilTagNative aprilTagNative;
+    private String androidId;
 
     static {
         if (!OpenCVLoader.initDebug()) {
@@ -60,10 +52,13 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    @SuppressLint("HardwareIds")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        Log.d("Method", "protected void onCreate(Bundle savedInstanceState)");
 
         textureView = findViewById(R.id.texture_view);
 
@@ -75,9 +70,16 @@ public class MainActivity extends AppCompatActivity {
             startCamera();
         }
 
-        // Initialize AprilTagNative
-//        aprilTagNative = new AprilTagNative();
-//        aprilTagNative.initialize();
+        androidId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+
+        Log.d("Device Id", androidId);
+
+        try {
+            // Initialize AprilTagNative
+            AprilTagNative.apriltag_init("tag36h11", 0, 1.0, 0.0, 1);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -92,6 +94,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startCamera() {
+        Log.d("Method", "private void startCamera()");
         textureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
             public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surfaceTexture, int width, int height) {
@@ -112,6 +115,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void openCamera() {
+        Log.d("Method", "private void openCamera()");
         CameraManager cameraManager = (CameraManager) getSystemService(CAMERA_SERVICE);
         try {
             String cameraId = cameraManager.getCameraIdList()[0];
@@ -143,6 +147,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void createCameraPreviewSession() {
+        Log.d("Method", "private void createCameraPreviewSession()");
         try {
             SurfaceTexture surfaceTexture = textureView.getSurfaceTexture();
             surfaceTexture.setDefaultBufferSize(textureView.getWidth(), textureView.getHeight());
@@ -186,6 +191,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void processImage(Image image) {
+        Log.d("Method", "private void processImage(Image image)");
         ByteBuffer buffer = image.getPlanes()[0].getBuffer();
         byte[] bytes = new byte[buffer.remaining()];
         buffer.get(bytes);
@@ -195,19 +201,26 @@ public class MainActivity extends AppCompatActivity {
 
         Imgproc.cvtColor(mat, mat, Imgproc.COLOR_YUV2GRAY_420);
 
-// Convert the Mat to a byte array
+        // Convert the Mat to a byte array
         byte[] imageData = new byte[(int) (mat.total() * mat.elemSize())];
         mat.get(0, 0, imageData);
 
-//        // Call the native method to detect AprilTags
-//        AprilTagDetection[] detections = aprilTagNative.detectAprilTags(imageData, mat.width(), mat.height());
-//
-//        // Draw rectangles around detected AprilTags
-//        for (AprilTagDetection detection : detections) {
-//            Point pt1 = new Point(detection.corners[0][0], detection.corners[0][1]);
-//            Point pt2 = new Point(detection.corners[2][0], detection.corners[2][1]);
-//            Imgproc.rectangle(mat, pt1, pt2, new Scalar(0, 255, 0), 2);
-//        }
+        // Call the native method to detect AprilTags
+        ArrayList<AprilTagDetection> detections = AprilTagNative.apriltag_detect_yuv(imageData, mat.width(), mat.height());
+
+        if (detections.isEmpty()) {
+            Log.d("AprilTagDetection", "No AprilTags detected.");
+        } else {
+            Log.d("AprilTagDetection", detections.size() + " AprilTags detected.");
+        }
+
+        // Draw rectangles around detected AprilTags
+        for (AprilTagDetection detection : detections) {
+            Point pt1 = new Point(detection.p[0], detection.p[1]);
+            Point pt2 = new Point(detection.p[4], detection.p[5]);
+            Imgproc.rectangle(mat, pt1, pt2, new Scalar(0, 255, 0), 2);
+            Log.d("AprilTagDetection", "Tag detected at: (" + pt1 + ", " + pt2 + ")");
+        }
 
         // If you want to display the processed frame, you can do so by converting the Mat back to a bitmap and displaying it in an ImageView
         Bitmap bitmap = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888);

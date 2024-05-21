@@ -33,10 +33,10 @@ either expressed or implied, of the Regents of The University of Michigan.
 #include <math.h>
 #include <stdio.h>
 
-#include "common/matd.h"
-#include "common/zarray.h"
-#include "common/homography.h"
-#include "common/math_util.h"
+#include "matd.h"
+#include "zarray.h"
+#include "homography.h"
+#include "math_util.h"
 
 // correspondences is a list of float[4]s, consisting of the points x
 // and y concatenated. We will compute a homography such that y = Hx
