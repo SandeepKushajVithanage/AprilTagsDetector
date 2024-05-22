@@ -4,45 +4,43 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.graphics.ImageFormat;
-import android.graphics.SurfaceTexture;
-import android.hardware.camera2.CameraAccessException;
-import android.hardware.camera2.CameraCaptureSession;
-import android.hardware.camera2.CameraDevice;
-import android.hardware.camera2.CameraManager;
-import android.hardware.camera2.CaptureRequest;
 import android.media.Image;
-import android.media.ImageReader;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
-import android.view.Surface;
-import android.view.TextureView;
 import android.widget.ImageView;
+import android.widget.Toast;
+import android.graphics.Matrix;
 import androidx.annotation.NonNull;
+import androidx.annotation.OptIn;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.camera.core.CameraSelector;
+import androidx.camera.core.ExperimentalGetImage;
+import androidx.camera.core.ImageAnalysis;
+import androidx.camera.core.ImageProxy;
+import androidx.camera.core.Preview;
+import androidx.camera.lifecycle.ProcessCameraProvider;
+import androidx.camera.view.PreviewView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import com.google.common.util.concurrent.ListenableFuture;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.Point;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
-import org.opencv.core.Point;
-import java.util.Collections;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
     private static final int CAMERA_REQUEST_CODE = 200;
-    private TextureView textureView;
-    private CameraDevice cameraDevice;
-    private CameraCaptureSession cameraCaptureSession;
-    private ImageReader imageReader;
-//    private AprilTagNative aprilTagNative;
-    private String androidId;
+    private PreviewView previewView;
+    private ExecutorService cameraExecutor;
 
     static {
         if (!OpenCVLoader.initDebug()) {
@@ -58,9 +56,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Log.d("Method", "protected void onCreate(Bundle savedInstanceState)");
-
-        textureView = findViewById(R.id.texture_view);
+        previewView = findViewById(R.id.previewView);
+        cameraExecutor = Executors.newSingleThreadExecutor();
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -70,8 +67,7 @@ public class MainActivity extends AppCompatActivity {
             startCamera();
         }
 
-        androidId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
-
+        String androidId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
         Log.d("Device Id", androidId);
 
         try {
@@ -94,104 +90,49 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startCamera() {
-        Log.d("Method", "private void startCamera()");
-        textureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
-            @Override
-            public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surfaceTexture, int width, int height) {
-                openCamera();
+        Log.d("METHOD", "private void startCamera()");
+        ListenableFuture<ProcessCameraProvider> cameraProviderFuture =
+                ProcessCameraProvider.getInstance(this);
+
+        cameraProviderFuture.addListener(() -> {
+            try {
+                ProcessCameraProvider cameraProvider = cameraProviderFuture.get();
+                bindPreviewAndAnalysis(cameraProvider);
+            } catch (ExecutionException | InterruptedException e) {
+                Toast.makeText(this, "Error starting camera: " + e.getMessage(), Toast.LENGTH_SHORT).show();
             }
-
-            @Override
-            public void onSurfaceTextureSizeChanged(@NonNull SurfaceTexture surfaceTexture, int width, int height) {}
-
-            @Override
-            public boolean onSurfaceTextureDestroyed(@NonNull SurfaceTexture surfaceTexture) {
-                return false;
-            }
-
-            @Override
-            public void onSurfaceTextureUpdated(@NonNull SurfaceTexture surfaceTexture) {}
-        });
+        }, ContextCompat.getMainExecutor(this));
     }
 
-    private void openCamera() {
-        Log.d("Method", "private void openCamera()");
-        CameraManager cameraManager = (CameraManager) getSystemService(CAMERA_SERVICE);
-        try {
-            String cameraId = cameraManager.getCameraIdList()[0];
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                return;
-            }
-            cameraManager.openCamera(cameraId, new CameraDevice.StateCallback() {
-                @Override
-                public void onOpened(@NonNull CameraDevice camera) {
-                    cameraDevice = camera;
-                    createCameraPreviewSession();
-                }
+    private void bindPreviewAndAnalysis(@NonNull ProcessCameraProvider cameraProvider) {
+        Preview preview = new Preview.Builder().build();
+        preview.setSurfaceProvider(previewView.getSurfaceProvider());
 
-                @Override
-                public void onDisconnected(@NonNull CameraDevice camera) {
-                    cameraDevice.close();
-                    cameraDevice = null;
-                }
+        CameraSelector cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA;
 
-                @Override
-                public void onError(@NonNull CameraDevice camera, int error) {
-                    cameraDevice.close();
-                    cameraDevice = null;
-                }
-            }, null);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+        ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .build();
 
-    private void createCameraPreviewSession() {
-        Log.d("Method", "private void createCameraPreviewSession()");
-        try {
-            SurfaceTexture surfaceTexture = textureView.getSurfaceTexture();
-            surfaceTexture.setDefaultBufferSize(textureView.getWidth(), textureView.getHeight());
-            Surface surface = new Surface(surfaceTexture);
-
-            CaptureRequest.Builder builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-            builder.addTarget(surface);
-
-            imageReader = ImageReader.newInstance(textureView.getWidth(), textureView.getHeight(),
-                    ImageFormat.YUV_420_888, 2);
-            imageReader.setOnImageAvailableListener(reader -> {
-                Image image = reader.acquireLatestImage();
+        imageAnalysis.setAnalyzer(cameraExecutor, new ImageAnalysis.Analyzer() {
+            @OptIn(markerClass = ExperimentalGetImage.class)
+            @Override
+            public void analyze(@NonNull ImageProxy imageProxy) {
+                Log.d("METHOD", "public void analyze(@NonNull ImageProxy imageProxy)");
+                // Convert ImageProxy to Image
+                Image image = imageProxy.getImage();
                 if (image != null) {
                     processImage(image);
-                    image.close();
                 }
-            }, null);
+                imageProxy.close();
+            }
+        });
 
-            cameraDevice.createCaptureSession(Arrays.asList(surface, imageReader.getSurface()),
-                    new CameraCaptureSession.StateCallback() {
-                        @Override
-                        public void onConfigured(@NonNull CameraCaptureSession session) {
-                            if (cameraDevice == null) {
-                                return;
-                            }
-                            cameraCaptureSession = session;
-                            try {
-                                builder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO);
-                                cameraCaptureSession.setRepeatingRequest(builder.build(), null, null);
-                            } catch (CameraAccessException e) {
-                                e.printStackTrace();
-                            }
-                        }
-
-                        @Override
-                        public void onConfigureFailed(@NonNull CameraCaptureSession session) {}
-                    }, null);
-        } catch (CameraAccessException e) {
-            e.printStackTrace();
-        }
+        cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageAnalysis);
     }
 
     private void processImage(Image image) {
-        Log.d("Method", "private void processImage(Image image)");
+        Log.d("METHOD", "private void processImage(Image image)");
         ByteBuffer buffer = image.getPlanes()[0].getBuffer();
         byte[] bytes = new byte[buffer.remaining()];
         buffer.get(bytes);
@@ -226,18 +167,31 @@ public class MainActivity extends AppCompatActivity {
         Bitmap bitmap = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888);
         Utils.matToBitmap(mat, bitmap);
 
+        // Rotate the bitmap according to the orientation
+        bitmap = rotateBitmap(bitmap); // Adjust the angle as necessary
+
+        Bitmap finalBitmap = bitmap;
         runOnUiThread(() -> {
             ImageView imageView = findViewById(R.id.imageView);
-            imageView.setImageBitmap(bitmap);
+            imageView.setImageBitmap(finalBitmap);
         });
+    }
+
+    private Bitmap rotateBitmap(Bitmap source) {
+        Matrix matrix = new Matrix();
+        matrix.postRotate((float) 90);
+        return Bitmap.createBitmap(source, 0, 0, source.getWidth(), source.getHeight(), matrix, true);
     }
 
     @Override
     protected void onPause() {
-        if (cameraDevice != null) {
-            cameraDevice.close();
-            cameraDevice = null;
-        }
         super.onPause();
+        cameraExecutor.shutdown();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        cameraExecutor.shutdown();
     }
 }
