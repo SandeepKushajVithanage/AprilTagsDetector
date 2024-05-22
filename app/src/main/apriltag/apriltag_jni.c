@@ -28,6 +28,8 @@ JNIEXPORT void JNICALL Java_com_example_apriltagshandler2_AprilTagNative_native_
 {
     // Just do method lookups once and cache the results
 
+    __android_log_print(ANDROID_LOG_ERROR, "METHOD: apriltag_jni","Java_com_example_apriltagshandler2_AprilTagNative_native_1init");
+
     // Get ArrayList methods
     jclass al_cls = (*env)->FindClass(env, "java/util/ArrayList");
     if (!al_cls) {
@@ -86,6 +88,8 @@ JNIEXPORT void JNICALL Java_com_example_apriltagshandler2_AprilTagNative_yuv_1to
     // NV21 Format
     // width*height    luma (Y) bytes followed by
     // width*height/2  chroma (UV) bytes interleaved as V,U
+
+    __android_log_print(ANDROID_LOG_ERROR, "METHOD: apriltag_jni","Java_com_example_apriltagshandler2_AprilTagNative_yuv_1to_1rgb");
 
     jbyte *src = (*env)->GetByteArrayElements(env, _src, NULL);
     jint *dst = NULL;
@@ -149,6 +153,8 @@ JNIEXPORT void JNICALL Java_com_example_apriltagshandler2_AprilTagNative_aprilta
         (JNIEnv *env, jclass cls, jstring _tfname, jint errorbits, jdouble decimate,
          jdouble sigma, jint nthreads) {
     // Do cleanup in case we're already initialized
+
+    __android_log_print(ANDROID_LOG_ERROR, "METHOD: apriltag_jni","Java_com_example_apriltagshandler2_AprilTagNative_apriltag_1init");
     if (state.td) {
         apriltag_detector_destroy(state.td);
         state.td = NULL;
@@ -202,6 +208,7 @@ JNIEXPORT void JNICALL Java_com_example_apriltagshandler2_AprilTagNative_aprilta
 JNIEXPORT jobject JNICALL Java_com_example_apriltagshandler2_AprilTagNative_apriltag_1detect_1yuv
         (JNIEnv *env, jclass cls, jbyteArray _buf, jint width, jint height) {
     // If not initialized, init with default settings
+    __android_log_print(ANDROID_LOG_ERROR, "METHOD: apriltag_jni","Java_com_example_apriltagshandler2_AprilTagNative_apriltag_1detect_1yuv");
     if (!state.td) {
         state.tf = tag36h11_create();
         state.td = apriltag_detector_create();
